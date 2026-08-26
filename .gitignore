@@ -1,0 +1,9 @@
+.env
+.env.*
+!.env.example
+.vercel/
+logs/
+__pycache__/
+*.py[cod]
+.venv/
+node_modules/

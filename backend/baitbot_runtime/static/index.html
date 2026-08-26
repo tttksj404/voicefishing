@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%233269a8'/%3E%3Cpath d='M8 16h16M16 8v16' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
+  <title>미끼봇 런타임</title>
+  <style>
+    :root { font-family: system-ui, sans-serif; color: #17202a; background: #f7f7f7; }
+    body { margin: 0; }
+    main { max-width: 960px; margin: 0 auto; padding: 1rem; }
+    section { background: #fff; border: 1px solid #d8dee4; border-radius: 6px; padding: 1rem; margin: 0 0 1rem; }
+    h1, h2 { margin-top: 0; }
+    h1 { font-size: 1.4rem; }
+    h2 { font-size: 1.05rem; }
+    label { display: block; font-weight: 600; margin-bottom: .25rem; }
+    input, select, textarea, button { box-sizing: border-box; font: inherit; }
+    input, select, textarea { border: 1px solid #aeb8c2; border-radius: 4px; padding: .5rem; width: 100%; }
+    textarea { min-height: 5rem; resize: vertical; }
+    button { border: 1px solid #59636e; border-radius: 4px; background: #eef1f4; cursor: pointer; padding: .5rem .75rem; }
+    button:disabled { cursor: wait; opacity: .55; }
+    .fields { display: grid; gap: .75rem; grid-template-columns: 2fr 1fr; margin-bottom: .75rem; }
+    .actions { align-items: center; display: flex; flex-wrap: wrap; gap: .75rem; }
+    .status-grid, .timing-grid { display: grid; gap: .5rem 1rem; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0; }
+    .status-grid dt, .timing-grid dt { color: #5b6570; font-size: .8rem; }
+    .status-grid dd, .timing-grid dd { font-weight: 600; margin: 0; overflow-wrap: anywhere; }
+    .conversation { list-style: none; margin: 0 0 1rem; max-height: 420px; min-height: 8rem; overflow: auto; padding: 0; }
+    .message { border: 1px solid #d8dee4; border-radius: 4px; margin: .5rem 0; padding: .6rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .message strong { display: block; font-size: .8rem; margin-bottom: .3rem; }
+    .message.scammer { background: #fff8e6; }
+    .message.baitbot { background: #edf7ee; }
+    pre { background: #f4f6f8; border: 1px solid #d8dee4; border-radius: 4px; margin: 0; max-height: 300px; overflow: auto; padding: .75rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .event-summary { display: grid; gap: .5rem 1rem; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0 0 .75rem; }
+    .event-summary dt { color: #5b6570; font-size: .8rem; }
+    .event-summary dd { font-weight: 600; margin: 0; overflow-wrap: anywhere; }
+    .event-table-wrap { box-sizing: border-box; max-width: 100%; min-width: 0; overflow-x: auto; width: 100%; }
+    .event-table-wrap:focus-visible { outline: 3px solid #3269a8; outline-offset: 2px; }
+    .event-table { border-collapse: collapse; min-width: 760px; width: 100%; }
+    .event-table caption { caption-side: top; font-weight: 600; padding-bottom: .5rem; text-align: left; }
+    .event-table th, .event-table td { border: 1px solid #d8dee4; padding: .5rem; text-align: left; vertical-align: top; }
+    .event-table th { background: #f4f6f8; font-size: .85rem; white-space: nowrap; }
+    .event-table td { overflow-wrap: anywhere; }
+    .empty-value { color: #5b6570; }
+    .evidence-list { margin: 0; padding-left: 1.2rem; }
+    .visually-hidden { clip: rect(0 0 0 0); clip-path: inset(50%); height: 1px; overflow: hidden; position: absolute; white-space: nowrap; width: 1px; }
+    .panels { display: grid; gap: 1rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .panels > section { min-width: 0; }
+    .notice { background: #fff8e6; border: 1px solid #e4c66a; border-radius: 4px; padding: .6rem; }
+    .demo-notice { margin-bottom: 1rem; }
+    .demo-notice h2 { font-size: .95rem; margin: 0 0 .35rem; }
+    .demo-notice ul { margin: 0; padding-left: 1.2rem; }
+    .error { background: #fff0f0; border: 1px solid #d66; border-radius: 4px; color: #8b0000; margin-bottom: 1rem; padding: .6rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .muted { color: #5b6570; }
+    @media (max-width: 680px) {
+      .fields, .panels, .status-grid, .timing-grid, .event-summary { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>미끼봇 런타임</h1>
+    <p id="config-status" class="notice" role="status" aria-live="polite">서버 설정을 불러오는 중입니다.</p>
+    <aside class="notice demo-notice" role="note" aria-labelledby="demo-notice-title">
+      <h2 id="demo-notice-title">데모·개인정보 안내</h2>
+      <ul>
+        <li>이 공개 버전은 브라우저가 세션 상태를 다음 요청에 전달하는 데모입니다. 새로고침·새 탭·새 세션에서는 대화가 초기화될 수 있습니다.</li>
+        <li>실제 주민번호·계좌번호·전화번호·비밀번호 등 개인정보·금융정보는 입력하지 마세요.</li>
+        <li>서버 로그에는 Production 마스킹이 적용되지만, 테스트에는 민감하지 않은 예시 문구만 사용하세요.</li>
+      </ul>
+    </aside>
+
+    <section aria-labelledby="settings-title">
+      <h2 id="settings-title">런타임 설정</h2>
+      <div class="fields">
+        <div>
+          <label for="model-input">Responder/Extractor 모델</label>
+          <input id="model-input" type="text" autocomplete="off" spellcheck="false" value="stealth/ox-alpha">
+        </div>
+        <div>
+          <label for="reasoning-input">추론 수준</label>
+          <select id="reasoning-input">
+            <option value="none">none</option>
+            <option value="minimal">minimal</option>
+            <option value="low" selected>low</option>
+            <option value="medium">medium</option>
+            <option value="high">high</option>
+            <option value="xhigh">xhigh</option>
+            <option value="max">max</option>
+            <option value="ultra">ultra</option>
+          </select>
+        </div>
+      </div>
+      <div class="actions">
+        <button id="reset-button" type="button">새 세션</button>
+        <span id="request-status" class="muted" role="status" aria-live="polite">대기 중</span>
+      </div>
+    </section>
+
+    <section aria-labelledby="state-title">
+      <h2 id="state-title">상태</h2>
+      <dl class="status-grid">
+        <div><dt>call_state</dt><dd id="call-state">-</dd></div>
+        <div><dt>scam_state</dt><dd id="scam-state">-</dd></div>
+        <div><dt>safety</dt><dd id="safety-state">-</dd></div>
+        <div><dt>turn</dt><dd id="turn-state">0</dd></div>
+      </dl>
+    </section>
+
+    <div id="error-area" class="error" role="alert" hidden></div>
+    <div id="partial-area" class="notice" role="status" aria-live="polite" hidden></div>
+
+    <section aria-labelledby="conversation-title">
+      <h2 id="conversation-title">대화</h2>
+      <ol id="conversation-list" class="conversation" aria-live="polite" aria-label="사기범과 미끼봇 대화"></ol>
+      <form id="scammer-form">
+        <label for="scammer-input">사기범 대사</label>
+        <textarea id="scammer-input" placeholder="사기범의 대사를 입력하세요. Enter로 전송하고 Shift+Enter로 줄바꿈합니다."></textarea>
+        <div class="actions">
+          <button id="send-button" type="submit" disabled>전송</button>
+          <span class="muted">Enter 전송 · Shift+Enter 줄바꿈</span>
+        </div>
+      </form>
+    </section>
+
+    <div class="panels">
+      <section aria-labelledby="event-title">
+        <h2 id="event-title">추출 이벤트 스키마</h2>
+        <dl class="event-summary" aria-label="이벤트 추출 요약">
+          <div><dt>schema status</dt><dd id="event-schema-status">EMPTY</dd></div>
+          <div><dt>extraction_status</dt><dd id="event-extraction-status">IDLE</dd></div>
+          <div><dt>추출 개수</dt><dd id="event-extracted-count">0/8 추출</dd></div>
+        </dl>
+        <p id="event-schema-announcement" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true">이벤트 추출 정보 없음: 0/8 추출</p>
+        <div class="event-table-wrap" tabindex="0" aria-label="이벤트 추출 표. 좁은 화면에서는 가로로 스크롤할 수 있습니다.">
+          <table class="event-table">
+            <caption>사기 징후 추출 결과</caption>
+            <thead>
+              <tr>
+                <th scope="col">필드</th>
+                <th scope="col">추출 상태</th>
+                <th scope="col">추출값</th>
+                <th scope="col">정규화값</th>
+                <th scope="col">신뢰도</th>
+                <th scope="col">근거 턴</th>
+              </tr>
+            </thead>
+            <tbody id="event-schema-body"></tbody>
+          </table>
+        </div>
+      </section>
+      <section aria-labelledby="attack-title">
+        <h2 id="attack-title">attack_events</h2>
+        <pre id="attack-events" aria-live="polite">공격 이벤트 없음</pre>
+      </section>
+    </div>
+
+    <section aria-labelledby="timing-title">
+      <h2 id="timing-title">호출 지연</h2>
+      <dl class="timing-grid">
+        <div><dt>Responder</dt><dd id="responder-time">-</dd></div>
+        <div><dt>Extractor</dt><dd id="extractor-time">-</dd></div>
+        <div><dt>전체</dt><dd id="total-time">-</dd></div>
+        <div><dt>오류</dt><dd id="timing-errors">없음</dd></div>
+      </dl>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      'use strict';
+
+      const DEFAULT_MODEL = 'stealth/ox-alpha';
+      const ALLOWED_REASONING = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'];
+      const modelInput = document.getElementById('model-input');
+      const reasoningInput = document.getElementById('reasoning-input');
+      const scammerInput = document.getElementById('scammer-input');
+      const sendButton = document.getElementById('send-button');
+      const resetButton = document.getElementById('reset-button');
+      const form = document.getElementById('scammer-form');
+      const conversationList = document.getElementById('conversation-list');
+      const configStatus = document.getElementById('config-status');
+      const requestStatus = document.getElementById('request-status');
+      const errorArea = document.getElementById('error-area');
+      const partialArea = document.getElementById('partial-area');
+      const eventSchemaStatus = document.getElementById('event-schema-status');
+      const eventExtractionStatus = document.getElementById('event-extraction-status');
+      const eventExtractedCount = document.getElementById('event-extracted-count');
+      const eventSchemaAnnouncement = document.getElementById('event-schema-announcement');
+      const eventSchemaBody = document.getElementById('event-schema-body');
+      const EVENT_SCHEMA_FIELDS = [
+        { key: 'impersonated_org', label: '사칭 기관' },
+        { key: 'requested_amount', label: '요구 금액' },
+        { key: 'account_number', label: '계좌번호' },
+        { key: 'phone_number', label: '전화번호' },
+        { key: 'url', label: 'URL' },
+        { key: 'app', label: '앱/설치 파일' },
+        { key: 'instruction', label: '행동 지시' },
+        { key: 'threat', label: '협박/압박' }
+      ];
+      const NOT_EXTRACTED = '미추출';
+      const SESSION_SNAPSHOT_FIELDS = ['session_id', 'turn_seq', 'conversation', 'event_schema', 'attack_events'];
+      let busy = false;
+      let initialized = false;
+      let sessionSnapshot = null;
+
+      function jsonText(value, emptyText) {
+        if (value === undefined || value === null || (typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 0)) {
+          return emptyText;
+        }
+        try { return JSON.stringify(value, null, 2); } catch (_) { return String(value); }
+      }
+
+      function setText(id, value) {
+        const element = document.getElementById(id);
+        element.textContent = value === undefined || value === null || value === '' ? '-' : typeof value === 'string' ? value : jsonText(value, '-');
+      }
+
+      function setRuntimeState(data) {
+        setText('call-state', data.call_state);
+        setText('scam-state', data.scam_state);
+        setText('safety-state', data.safety);
+        setText('turn-state', data.turn_seq === undefined ? 0 : data.turn_seq);
+      }
+
+      function clearError() {
+        errorArea.hidden = true;
+        errorArea.textContent = '';
+        partialArea.hidden = true;
+        partialArea.textContent = '';
+      }
+
+      function showError(message) {
+        errorArea.hidden = false;
+        errorArea.textContent = message || '요청 처리 중 오류가 발생했습니다.';
+      }
+
+      function messageValue(entry) {
+        if (entry === null || entry === undefined) return '';
+        if (typeof entry === 'string') return entry;
+        return entry.message ?? entry.content ?? entry.text ?? '';
+      }
+
+      function roleValue(entry) {
+        if (!entry || typeof entry !== 'object') return 'unknown';
+        return String(entry.role ?? entry.speaker ?? 'unknown').toLowerCase();
+      }
+
+      function addMessage(role, text, turn) {
+        if (!text) return;
+        const item = document.createElement('li');
+        item.className = role === 'scammer' || role === 'user' || role === 'suspect' ? 'message scammer' : 'message baitbot';
+        const label = document.createElement('strong');
+        label.textContent = role === 'scammer' || role === 'user' || role === 'suspect' ? '사기범' : '미끼봇';
+        if (turn !== undefined && turn !== null) label.textContent += ` · turn ${turn}`;
+        const body = document.createElement('span');
+        body.textContent = text;
+        item.append(label, body);
+        conversationList.append(item);
+      }
+
+      function renderConversation(conversation) {
+        conversationList.replaceChildren();
+        if (!Array.isArray(conversation)) return;
+        conversation.forEach((entry) => addMessage(roleValue(entry), messageValue(entry), entry && entry.turn_seq));
+      }
+
+      function renderChatFallback(data) {
+        addMessage('scammer', data.scammer_message, data.turn_seq);
+        addMessage('baitbot', data.baitbot_message, data.turn_seq);
+      }
+
+      function timingValue(timings, names) {
+        if (!timings || typeof timings !== 'object') return '-';
+        for (const name of names) if (timings[name] !== undefined && timings[name] !== null) return `${timings[name]} ms`;
+        return '-';
+      }
+
+      function renderTimings(timings, errors) {
+        setText('responder-time', timingValue(timings, ['responder_ms', 'responder', 'responder_latency_ms']));
+        setText('extractor-time', timingValue(timings, ['extractor_ms', 'extractor', 'extractor_latency_ms']));
+        setText('total-time', timingValue(timings, ['total_ms', 'total', 'elapsed_ms']));
+        setText('timing-errors', errors && ((Array.isArray(errors) && errors.length) || (typeof errors === 'object' && Object.keys(errors).length)) ? '있음' : '없음');
+      }
+
+      function renderErrors(errors) {
+        if (errors === undefined || errors === null || (Array.isArray(errors) && errors.length === 0) || (typeof errors === 'object' && !Array.isArray(errors) && Object.keys(errors).length === 0)) return;
+        const text = jsonText(errors, '부분 실패');
+        showError(`부분 실패 또는 오류\n${text}`);
+        partialArea.hidden = false;
+        partialArea.textContent = 'Responder/Extractor 중 일부 처리가 실패했습니다. 표시된 결과는 부분 결과일 수 있습니다.';
+      }
+
+      function isRecord(value) {
+        return value !== null && typeof value === 'object' && !Array.isArray(value);
+      }
+
+      function snapshotFromPayload(data) {
+        if (!isRecord(data) || !SESSION_SNAPSHOT_FIELDS.every((key) => Object.prototype.hasOwnProperty.call(data, key))) return null;
+        try {
+          return JSON.parse(JSON.stringify(Object.fromEntries(SESSION_SNAPSHOT_FIELDS.map((key) => [key, data[key]]))));
+        } catch (_) {
+          return null;
+        }
+      }
+
+      function rememberSessionSnapshot(data) {
+        const snapshot = snapshotFromPayload(data);
+        if (snapshot) sessionSnapshot = snapshot;
+      }
+
+      function hasValue(value) {
+        return value !== undefined && value !== null && value !== '';
+      }
+
+      function displayValue(value, emptyText = NOT_EXTRACTED) {
+        if (!hasValue(value)) return emptyText;
+        return typeof value === 'object' ? jsonText(value, emptyText) : String(value);
+      }
+
+      function eventEntryValue(entry, key) {
+        return isRecord(entry) ? entry[key] : key === 'value' ? entry : null;
+      }
+
+      function createEventCell(value) {
+        const cell = document.createElement('td');
+        cell.textContent = displayValue(value);
+        if (!hasValue(value)) cell.classList.add('empty-value');
+        return cell;
+      }
+
+      function createEvidenceCell(entry) {
+        const cell = document.createElement('td');
+        const evidence = isRecord(entry) && Array.isArray(entry.evidence_turn_ids)
+          ? [...new Set(entry.evidence_turn_ids.filter((turnId) => hasValue(turnId)).map(String))]
+          : [];
+        if (!evidence.length) {
+          cell.textContent = NOT_EXTRACTED;
+          cell.classList.add('empty-value');
+          return cell;
+        }
+        const list = document.createElement('ul');
+        list.className = 'evidence-list';
+        evidence.forEach((turnId) => {
+          const item = document.createElement('li');
+          item.textContent = turnId;
+          list.append(item);
+        });
+        cell.append(list);
+        return cell;
+      }
+
+      function confidenceText(entry, extracted) {
+        const confidence = eventEntryValue(entry, 'confidence');
+        const number = Number(confidence);
+        if (!extracted || !hasValue(confidence) || !Number.isFinite(number)) return NOT_EXTRACTED;
+        return `${Math.round(Math.max(0, Math.min(1, number)) * 100)}%`;
+      }
+
+      function schemaSummaryValue(schema, key, defaultValue) {
+        return Object.prototype.hasOwnProperty.call(schema, key)
+          ? displayValue(schema[key])
+          : defaultValue;
+      }
+
+      function renderEventSchema(eventSchema) {
+        const schema = isRecord(eventSchema) ? eventSchema : {};
+        let extractedCount = 0;
+        eventSchemaBody.replaceChildren();
+        EVENT_SCHEMA_FIELDS.forEach(({ key, label }) => {
+          const entry = schema[key];
+          const extractedValue = eventEntryValue(entry, 'value');
+          const extracted = hasValue(extractedValue);
+          if (extracted) extractedCount += 1;
+
+          const row = document.createElement('tr');
+          const field = document.createElement('th');
+          field.scope = 'row';
+          field.textContent = label;
+          const extractionStatus = document.createElement('td');
+          extractionStatus.textContent = extracted ? '추출됨' : NOT_EXTRACTED;
+          if (!extracted) extractionStatus.classList.add('empty-value');
+          const confidence = document.createElement('td');
+          confidence.textContent = confidenceText(entry, extracted);
+          if (!extracted || confidence.textContent === NOT_EXTRACTED) confidence.classList.add('empty-value');
+
+          row.append(
+            field,
+            extractionStatus,
+            createEventCell(extractedValue),
+            createEventCell(eventEntryValue(entry, 'normalized_value')),
+            confidence,
+            createEvidenceCell(entry)
+          );
+          eventSchemaBody.append(row);
+        });
+
+        const schemaStatus = schemaSummaryValue(schema, 'status', 'EMPTY');
+        const extractionStatus = schemaSummaryValue(schema, 'extraction_status', 'IDLE');
+        eventSchemaStatus.textContent = schemaStatus;
+        eventExtractionStatus.textContent = extractionStatus;
+        eventExtractedCount.textContent = `${extractedCount}/${EVENT_SCHEMA_FIELDS.length} 추출`;
+        eventSchemaAnnouncement.textContent = `이벤트 추출 상태: ${schemaStatus}, ${extractionStatus}. ${extractedCount}/${EVENT_SCHEMA_FIELDS.length}개 항목이 추출되었습니다.`;
+      }
+
+      function applyChatResponse(data) {
+        rememberSessionSnapshot(data);
+        if (data.model) modelInput.value = data.model;
+        if (ALLOWED_REASONING.includes(data.reasoning)) reasoningInput.value = data.reasoning;
+        setRuntimeState(data);
+        if (Array.isArray(data.conversation)) renderConversation(data.conversation);
+        else renderChatFallback(data);
+        renderEventSchema(data.event_schema);
+        document.getElementById('attack-events').textContent = jsonText(data.attack_events, '공격 이벤트 없음');
+        renderTimings(data.timings_ms, data.errors);
+        renderErrors(data.errors);
+      }
+
+      function setBusy(value) {
+        busy = value;
+        scammerInput.disabled = value;
+        sendButton.disabled = value || !initialized;
+        resetButton.disabled = value;
+        modelInput.disabled = value;
+        reasoningInput.disabled = value;
+        requestStatus.textContent = value ? 'Responder/Extractor 처리 중...' : '대기 중';
+      }
+
+      function errorFromPayload(payload) {
+        if (!payload || typeof payload !== 'object') return '';
+        return payload.error || payload.detail || payload.message || '';
+      }
+
+      async function requestJson(url, options) {
+        const response = await fetch(url, options);
+        const raw = await response.text();
+        let payload = {};
+        if (raw) {
+          try { payload = JSON.parse(raw); } catch (_) { payload = { message: raw }; }
+        }
+        if (!response.ok) {
+          const error = new Error(errorFromPayload(payload) || `HTTP ${response.status}`);
+          error.status = response.status;
+          error.payload = payload;
+          throw error;
+        }
+        return payload;
+      }
+
+      function hasStructuredChatPayload(payload) {
+        if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return false;
+        return ['conversation', 'event_schema', 'scammer_message', 'baitbot_message', 'attack_events', 'timings_ms', 'errors']
+          .some((key) => Object.prototype.hasOwnProperty.call(payload, key));
+      }
+
+      async function loadConfig() {
+        try {
+          const config = await requestJson('/api/config');
+          if (config.model) modelInput.value = config.model;
+          if (ALLOWED_REASONING.includes(config.reasoning)) reasoningInput.value = config.reasoning;
+          configStatus.textContent = config.key_configured === false
+            ? '서버 API 키가 설정되지 않았습니다. 키 값은 이 화면에 표시하지 않습니다.'
+            : config.key_configured === true
+              ? '서버 모델 설정을 불러왔습니다. API 키는 서버에서만 사용됩니다.'
+              : '서버 모델 설정을 불러왔습니다. API 키 상태는 확인되지 않았습니다.';
+        } catch (error) {
+          configStatus.textContent = `서버 설정을 불러오지 못했습니다: ${error.message}`;
+        }
+      }
+
+      async function sendChat() {
+        if (busy) return;
+        const message = scammerInput.value.trim();
+        if (!message) { showError('사기범 대사를 입력하세요.'); return; }
+        const model = modelInput.value.trim() || DEFAULT_MODEL;
+        clearError();
+        setBusy(true);
+        try {
+          const body = { message, model, reasoning: reasoningInput.value };
+          if (sessionSnapshot) body.session_snapshot = sessionSnapshot;
+          const data = await requestJson('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+          applyChatResponse(data);
+          scammerInput.value = '';
+        } catch (error) {
+          if ([207, 502].includes(error.status) && hasStructuredChatPayload(error.payload)) applyChatResponse(error.payload);
+          const status = error.status ? `HTTP ${error.status}` : '';
+          const detail = error.message && error.message !== status ? error.message : '';
+          showError([status, detail].filter(Boolean).join(': ') || '요청 처리 중 오류가 발생했습니다.');
+          requestStatus.textContent = status ? `요청 실패 (${status})` : '요청 실패';
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      async function resetSession() {
+        if (busy) return;
+        clearError();
+        setBusy(true);
+        try {
+          const data = await requestJson('/api/reset', { method: 'POST' });
+          rememberSessionSnapshot(data);
+          conversationList.replaceChildren();
+          renderEventSchema(data.event_schema);
+          document.getElementById('attack-events').textContent = '공격 이벤트 없음';
+          setRuntimeState({ ...data, call_state: data.call_state ?? 'BAIT_ACTIVE', turn_seq: data.turn_seq ?? 0 });
+          renderTimings(data.timings_ms, data.errors);
+          renderErrors(data.errors);
+          scammerInput.value = '';
+          return true;
+        } catch (error) {
+          showError(error.message);
+          requestStatus.textContent = '세션 초기화 실패';
+          return false;
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      async function initialize() {
+        await loadConfig();
+        initialized = await resetSession();
+        setBusy(false);
+      }
+
+      form.addEventListener('submit', (event) => { event.preventDefault(); sendChat(); });
+      scammerInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' && !event.shiftKey) {
+          event.preventDefault(); form.requestSubmit();
+        }
+      });
+      resetButton.addEventListener('click', resetSession);
+      renderEventSchema();
+      initialize();
+    })();
+  </script>
+</body>
+</html>
