@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.basedpyright/
+.codex-fable5/
+.tools/
+*.pyc
+.playwright-cli/
+output/
+.omo/

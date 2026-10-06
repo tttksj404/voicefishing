@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="검증된 로컬 Qwen3 8B CUDA 모델로 프로젝트 텍스트 파일을 검토하는 브라우저 로컬 IDE"
+    />
+    <title>Local Qwen IDE</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="/assets/workbench.css?v=ide-20260826-4" />
+  </head>
+  <body>
+    <div class="workbench" data-run-state="ready" data-file-state="empty">
+      <header class="app-header">
+        <a class="brand" href="/" aria-label="Local Qwen IDE 처음으로">
+          <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 3.5h9l5 5v12H5z" />
+            <path d="M14 3.5v5h5" />
+            <path d="M8 14h8M8 17h5" />
+          </svg>
+          <span>Local Qwen IDE</span>
+        </a>
+        <div class="header-context">
+          <span class="quiet-label">Qwen3 8B · CUDA · loopback only</span>
+          <span id="header-status" class="status-marker" role="status" aria-live="polite">
+            상태를 확인하는 중
+          </span>
+        </div>
+      </header>
+
+      <main class="ide-grid">
+        <aside class="workspace-rail" aria-label="프로젝트 파일">
+          <header class="rail-header">
+            <p class="eyebrow">PROJECT WORKSPACE</p>
+            <h2>현재 프로젝트</h2>
+            <span id="file-list-status" class="status-marker" aria-live="polite">
+              파일을 읽는 중
+            </span>
+          </header>
+          <p class="rail-copy">
+            기존 UTF-8 텍스트 파일만 표시합니다. 모델·캐시·Git 폴더는 열거나 <span class="korean-phrase">저장할 수 없습니다.</span>
+          </p>
+          <nav id="workspace-files" class="file-list" aria-label="안전한 프로젝트 파일"></nav>
+          <section class="runtime-card" aria-labelledby="runtime-title">
+            <p class="eyebrow">ACTIVE RUNTIME</p>
+            <h2 id="runtime-title">로컬 모델</h2>
+            <dl class="runtime-facts">
+              <div>
+                <dt>모델</dt>
+                <dd id="model-name">확인 중</dd>
+              </div>
+              <div>
+                <dt>파일 크기</dt>
+                <dd id="model-size" class="mono">확인 중</dd>
+              </div>
+              <div>
+                <dt>러너</dt>
+                <dd id="runner-status">확인 중</dd>
+              </div>
+              <div>
+                <dt>스레드</dt>
+                <dd id="thread-count" class="mono">확인 중</dd>
+              </div>
+            </dl>
+          </section>
+        </aside>
+
+        <section class="editor-workspace" aria-labelledby="editor-title">
+          <header class="editor-header">
+            <div>
+              <p class="eyebrow">FILE EDITOR</p>
+              <h1 id="editor-title">파일을 선택하세요</h1>
+              <p id="active-file-path" class="active-file-path mono">프로젝트 파일을 불러오는 중</p>
+            </div>
+            <div class="editor-actions">
+              <span id="file-status" class="status-marker" aria-live="polite">대기</span>
+              <button id="save-button" class="command-button" type="button" disabled>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M5 4h12l3 3v13H5z" />
+                  <path d="M8 4v6h8V4M8 20v-6h8v6" />
+                </svg>
+                <span id="save-label">저장</span>
+                <kbd>Ctrl+S</kbd>
+              </button>
+            </div>
+          </header>
+          <p id="editor-help" class="field-help">
+            이 화면은 선택한 기존 프로젝트 텍스트 파일만 편집합니다. 코드 실행이나 자동 저장은 하지 않습니다.
+          </p>
+          <div class="code-editor-shell">
+            <div class="line-numbers-wrap" aria-hidden="true">
+              <pre id="line-numbers" class="line-numbers">1</pre>
+            </div>
+            <textarea
+              id="file-editor"
+              name="file-editor"
+              rows="20"
+              autocomplete="off"
+              spellcheck="false"
+              aria-describedby="editor-help editor-feedback"
+              placeholder="열 파일을 선택하세요."
+              disabled
+            ></textarea>
+          </div>
+          <footer class="editor-footer">
+            <span id="file-language" class="mono">—</span>
+            <span id="file-size" class="mono">—</span>
+            <span id="editor-feedback" class="command-feedback" aria-live="polite"></span>
+          </footer>
+        </section>
+
+        <aside class="assistant-inspector" aria-label="Qwen 로컬 도우미">
+          <section class="assistant-section">
+            <header class="assistant-heading">
+              <div>
+                <p class="eyebrow">LOCAL QWEN</p>
+                <h2>코드 검토 요청</h2>
+              </div>
+              <a class="quiet-link" href="/components">구성요소 상태</a>
+            </header>
+            <p id="assistant-help" class="field-help">
+              요청과 선택한 코드 문맥은 이 PC 안에서만 처리합니다. 응답은 파일에 <span class="korean-phrase">자동 적용되지 않습니다.</span>
+            </p>
+            <form id="assistant-form" class="assistant-form">
+              <div class="assistant-label-row">
+                <label for="assistant-prompt">Qwen 요청</label>
+                <span id="assistant-character-count" class="mono">0 / 700</span>
+              </div>
+              <textarea
+                id="assistant-prompt"
+                name="assistant-prompt"
+                rows="6"
+                maxlength="700"
+                autocomplete="off"
+                spellcheck="false"
+                aria-describedby="assistant-help assistant-character-count"
+                placeholder="예: 이 코드의 예외 처리와 테스트 빈틈을 한국어로 짚어줘."
+              ></textarea>
+              <label class="context-option" for="include-file-context">
+                <input id="include-file-context" type="checkbox" checked />
+                <span>현재 선택 영역 또는 파일 앞부분 1000자를 함께 보내기</span>
+              </label>
+              <div class="assistant-actions">
+                <button id="ask-button" class="command-button" type="submit" disabled>
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="m8 5 11 7-11 7z" />
+                  </svg>
+                  <span id="ask-label">Qwen에게 묻기</span>
+                  <kbd>Ctrl+Enter</kbd>
+                </button>
+                <button id="clear-button" class="quiet-button" type="button">요청 지우기</button>
+                <span id="assistant-feedback" class="command-feedback" aria-live="polite"></span>
+              </div>
+            </form>
+          </section>
+
+          <section class="output-console" aria-labelledby="output-title">
+            <header class="console-header">
+              <div>
+                <p class="eyebrow">MODEL OUTPUT</p>
+                <h2 id="output-title">Qwen 응답</h2>
+              </div>
+              <div class="console-actions">
+                <span id="output-status" class="status-marker">대기</span>
+                <button id="copy-button" class="quiet-button" type="button" disabled>응답 복사</button>
+              </div>
+            </header>
+            <pre id="output" class="output-text" aria-live="polite">아직 Qwen에게 <span class="korean-phrase">요청하지 않았습니다.</span></pre>
+          </section>
+
+          <section class="receipt-section" aria-labelledby="receipt-title">
+            <p class="eyebrow">EXECUTION RECEIPT</p>
+            <h2 id="receipt-title">현재 실행</h2>
+            <dl class="receipt-list">
+              <div>
+                <dt>상태</dt>
+                <dd id="receipt-state">아직 없음</dd>
+              </div>
+              <div>
+                <dt>경과 시간</dt>
+                <dd id="receipt-elapsed" class="mono">—</dd>
+              </div>
+              <div>
+                <dt>출력 예산</dt>
+                <dd id="receipt-tokens" class="mono">—</dd>
+              </div>
+              <div>
+                <dt>출력 digest</dt>
+                <dd id="receipt-digest" class="mono receipt-digest">—</dd>
+              </div>
+            </dl>
+          </section>
+        </aside>
+      </main>
+
+      <footer class="runtime-footer">
+        <span id="footer-state">로컬 런타임을 확인하는 중</span>
+        <span>파일 저장과 Qwen 실행은 각각 사용자의 명시적 동작으로만 수행됩니다.</span>
+      </footer>
+    </div>
+    <script src="/assets/workbench.js?v=ide-20260826-3" defer></script>
+  </body>
+</html>
